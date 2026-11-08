@@ -63,8 +63,21 @@ alter table public.event_photos enable row level security;
 alter table public.history_entries enable row level security;
 
 create policy "profiles read" on public.profiles for select using (true);
-create policy "profiles update own" on public.profiles for update using (id = auth.uid())
-  with check (id = auth.uid() and role = (select role from public.profiles where id = auth.uid())); -- role-оо өөрөө өөрчилж чадахгүй
+-- Хэрэглэгч өөрийн нэр/avatar-аа засаж болно. Role өөрчлөхийг trigger хориглоно.
+create policy "profiles update own" on public.profiles for update to authenticated
+  using (id = auth.uid()) with check (id = auth.uid());
+create function public.prevent_role_escalation() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.role is distinct from old.role and auth.uid() is not null and not exists (
+    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+  ) then
+    raise exception 'Only an administrator can change a user role';
+  end if;
+  return new;
+end $$;
+create trigger protect_profile_role before update on public.profiles
+for each row execute function public.prevent_role_escalation();
 
 create policy "exhibits read" on public.exhibits for select using (status = 'published' or creator_id = auth.uid() or public.is_admin());
 create policy "exhibits insert own" on public.exhibits for insert to authenticated with check (creator_id = auth.uid());

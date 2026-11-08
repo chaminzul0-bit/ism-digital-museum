@@ -1,39 +1,54 @@
 # ISM Digital Museum
 
-Мэдээллийн Системийн Менежментийн тэнхимийн түүх, багш нар, арга хэмжээ, оюутнуудын бүтээлийг нэг дор харуулах интерактив дижитал музей. (Internet Programming — Гэрийн даалгавар №1)
+ISM тэнхимийн түүх, багш, арга хэмжээ, оюутны бүтээлийг хадгалж, танилцуулах интерактив музей. Internet Programming · Гэрийн даалгавар №1.
 
-**Stack:** React + JavaScript (Vite), React Router, Supabase (Auth, PostgreSQL, Storage, RLS), Vercel.
+## Технологи
+- React 18 + JavaScript + Vite + React Router
+- Supabase Auth, PostgreSQL, Storage, Row Level Security
+- GitHub + Vercel
 
-## Боломжууд
-- Үзмэрийн жагсаалт, дэлгэрэнгүй хуудас; нэр / технологи / ангилал / оноор хайх, шүүх (үр дүнгүй үед мэдэгдэл)
-- Багш нар, өдөрлөг ба арга хэмжээ, зурагт цомог (lightbox)
-- Бүртгэл, нэвтрэлт, гаралт
-- Оюутан өөрийн бүтээлийг нэмэх / засах / устгах, зураг Supabase Storage-д хадгална
-- Админ самбар: багш, арга хэмжээ, цомгийн зураг, түүх, ангилал
-- **Бүтээлч шийдэл — ISM Time Machine (`/timeline`):** түүх, арга хэмжээ, үзмэрийг нэг шугаман дээр он цагийн дарааллаар үзүүлж, гулсуураар он сонгож, төрлөөр шүүнэ.
+## Хэрэгжүүлсэн боломжууд
+- Дижитал үзэсгэлэн: жагсаалт, дэлгэрэнгүй, ангилал/он/нэр/тайлбар/технологиор хайх, шүүх.
+- Багшийн танилцуулга; арга хэмжээний жагсаалт, дэлгэрэнгүй болон зурагт цомгийн lightbox.
+- ISM Time Machine: түүх, арга хэмжээ, үзмэрийг он цагийн дарааллаар харуулах, оноор шүүх.
+- Бүртгэл, нэвтрэх, гарах; хэрэглэгчийн profile.
+- Оюутны өөрийн бүтээлийн CRUD; Supabase Storage-д зураг хадгалах.
+- Админ CRUD: багш, арга хэмжээ, зурагт цомог, түүхэн бичлэг, ангилал.
+- Responsive dark museum дизайн, keyboard-accessible controls, хоосон/алдааны төлөв.
 
-## Суулгах
-1. supabase.com дээр төсөл үүсгэнэ.
-2. SQL Editor дээр `supabase/schema.sql`-г бүтнээр ажиллуулна (хүснэгт, RLS, storage bucket, жишиг өгөгдөл).
-3. `.env.example`-г `.env` болгож Project Settings → API-аас URL ба **anon** key-г хуулна.
-4. `npm install && npm run dev`
-5. Админ болгох: сайтад бүртгүүлсний дараа SQL Editor дээр
-   `update public.profiles set role='admin' where id = '<auth user id>';`
+## Эхлүүлэх
+1. `npm install`
+2. `.env.example` файлыг хуулж `.env` нэртэй болгоно.
+3. Supabase Project URL болон Publishable key (эсвэл legacy anon key)-г `.env`-д оруулна:
 
-## Өгөгдлийн сангийн бүтэц (ERD)
+```env
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
 ```
-auth.users 1─1 profiles 1─* exhibits *─1 exhibition_categories
-events 1─* event_photos      teachers      history_entries
+
+4. Supabase Dashboard → SQL Editor дээр `supabase/schema.sql`-г **шинэ/хоосон төсөл дээр нэг удаа** бүтнээр ажиллуулна.
+5. `npm run dev`.
+6. Нэвтэрч хэрэглэгч үүсгэсний дараа Supabase → Authentication → Users хэсгээс тухайн хэрэглэгчийн UUID-г авч SQL Editor дээр админ болгоно:
+
+```sql
+update public.profiles set role = 'admin' where id = 'USER_UUID_HERE';
 ```
-- **PK:** хүснэгт бүрийн `id` (uuid) мөрийг давтагдашгүй тодорхойлно; `profiles.id` нь `auth.users.id`-тэй адил.
-- **FK:** `exhibits.creator_id → profiles.id` (бүтээгч), `exhibits.category_id → exhibition_categories.id` (ангилал), `event_photos.event_id → events.id` (цомог, арга хэмжээ устахад зураг дагаж устна).
 
-## Аюулгүй байдал (RLS)
-- Нийтлэгдсэн үзмэр, багш, арга хэмжээг хүн бүр уншина.
-- `exhibits`-ийг зөвхөн `creator_id = auth.uid()` эзэмшигч (эсвэл админ) засна/устгана.
-- Бусад хүснэгтэд зөвхөн админ бичнэ; `role`-г хэрэглэгч өөрөө өөрчилж чадахгүй.
-- Storage: зөвхөн өөрийн `uid/` хавтас руу зураг оруулна.
-- Frontend-д зөвхөн public **anon** key ашигласан; service role key байхгүй.
+## Өгөгдлийн сангийн холбоос
+- `auth.users (1) → profiles (1)` — хэрэглэгчийн profile.
+- `profiles (1) → exhibits (many)` — бүтээлийн эзэмшигч (`creator_id`).
+- `exhibition_categories (1) → exhibits (many)` — ангилал (`category_id`).
+- `events (1) → event_photos (many)` — арга хэмжээний зурагт цомог (`event_id`).
+- `teachers`, `history_entries` — тусдаа лавлах/түүхийн хүснэгт.
 
-## Vercel deploy
-GitHub-д push → vercel.com → Add New Project → repo сонгох → Environment Variables-д `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` нэмээд Deploy. (`vercel.json` нь SPA route-уудыг зөв ажиллуулна.)
+`id` талбарууд UUID primary key; дээрх холбоосууд foreign key. `schema.sql` нь RLS идэвхжүүлж, нийтэд унших эрх ба эзэмшигч/админы бичих эрхийг тусгаарлана. Profile-ийн role-ийг энгийн хэрэглэгч өөрөө өөрчилж болохгүй. Storage-ийн `images` bucket-д хэрэглэгч зөвхөн өөрийн UUID хавтас (`<uid>/...`) руу upload хийнэ.
+
+## Чухал өгөгдлийн тэмдэглэл
+Даалгаврын PDF-д бодит багшийн нэр, арга хэмжээний огноо, оюутны бүтээлийн жагсаалт өгөөгүй. Иймээс бодит мэт зохиомол багш/арга хэмжээний мэдээлэл нэмээгүй. Ангилал болон timeline дахь seed бичлэгүүд нь жишээ/засварлах өгөгдөл; тэнхимийн баталгаатай мэдээллээр солих шаардлагатай.
+
+## Vercel
+- GitHub repository-г Vercel-д Import.
+- Framework: Vite; Build: `npm run build`; Output: `dist`.
+- Environment Variables-д `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` нэмнэ.
+- Deploy хийсний дараа Supabase Authentication → URL Configuration дээр Site URL болон Redirect URL-д Vercel domain-оо тохируулна.
+- `.env`-г GitHub-д хэзээ ч commit хийхгүй. Frontend-д зөвхөн publishable/anon key ашиглана; `service_role`/secret key-г хэзээ ч оруулахгүй.

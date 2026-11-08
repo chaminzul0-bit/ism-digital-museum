@@ -56,6 +56,12 @@ function Home() {
   const toggleFav = () => { const n = fav.includes(cur.id) ? fav.filter(x => x !== cur.id) : [...fav, cur.id]; setFav(n); try { localStorage.setItem('fav', JSON.stringify(n)) } catch {} }
   return (
     <>
+      <section className="hero">
+        <span className="eyebrow">Information Systems Management · Digital Archive</span>
+        <h1>Мэдлэг, бүтээл, түүхийг нэг дороос.</h1>
+        <p>ISM тэнхимийн оюутнуудын бүтээл, багш нар, арга хэмжээ болон түүхэн дурсамжийг интерактив дижитал музейгээр нээн үзээрэй.</p>
+        <div className="row"><Link className="btn" to="/exhibits">Үзэсгэлэн үзэх</Link><Link className="btn ghost" to="/timeline">Time Machine рүү</Link></div>
+      </section>
       <div className="carousel" aria-roledescription="carousel">
         {list.map((e, idx) => {
           const d = idx - i
