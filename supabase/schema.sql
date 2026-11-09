@@ -5,6 +5,9 @@ create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,   -- PK, auth.users-тэй 1:1
   display_name text not null,
   avatar_url text,
+  bio text,                      -- ISM Creators: оюутны товч танилцуулга
+  major text,                    -- хөтөлбөр / курс
+  github_url text,
   role text not null default 'creator' check (role in ('creator','admin')),
   created_at timestamptz default now()
 );
@@ -90,6 +93,19 @@ do $$ declare t text; begin
     execute format('create policy "%1$s admin write" on public.%1$s for all to authenticated using (public.is_admin()) with check (public.is_admin())', t);
   end loop;
 end $$;
+
+-- UFE импорт: /api/import-ufe (service role, серверт) бичнэ; админ хянаж нийтэлнэ
+create table public.import_items (
+  id uuid primary key default gen_random_uuid(),
+  title text not null, category text, summary text, content jsonb,
+  source_url text not null unique, source_name text,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  fetched_at timestamptz, reviewed_at timestamptz, created_at timestamptz default now()
+);
+alter table public.import_items enable row level security;
+create policy "import_items read" on public.import_items for select using (status = 'approved' or public.is_admin());
+create policy "import_items admin update" on public.import_items for update to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "import_items admin delete" on public.import_items for delete to authenticated using (public.is_admin());
 
 -- STORAGE: нийтэд харагдана, зөвхөн өөрийн хавтас руу (uid/...) оруулна
 insert into storage.buckets (id, name, public) values ('images','images', true) on conflict do nothing;
