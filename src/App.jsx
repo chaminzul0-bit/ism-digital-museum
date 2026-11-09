@@ -328,7 +328,8 @@ function ProfileEditor() {
     if (!f.display_name.trim()) return setMsg('Нэрээ оруулна уу.')
     if (f.github_url && !/^https?:\/\//.test(f.github_url)) return setMsg('GitHub холбоос http(s):// -ээр эхэлнэ.')
     setBusy(true)
-    const payload = Object.fromEntries(Object.entries(f).map(([k, v]) => [k, v.trim() || null]))
+    // migration_v2 ажиллаагүй (bio/major/github_url багана байхгүй) үед зөвхөн байгаа баганыг илгээнэ
+    const payload = Object.fromEntries(Object.entries(f).filter(([k]) => k in profile).map(([k, v]) => [k, v.trim() || null]))
     const { error } = await supabase.from('profiles').update(payload).eq('id', user.id)
     setBusy(false)
     if (error) return setMsg('Хадгалж чадсангүй: ' + error.message)
@@ -338,6 +339,7 @@ function ProfileEditor() {
     <details className="panel" open={!profile.bio}>
       <summary><b>Миний Creator профайл</b> <small>— ISM Creators хуудсанд харагдана · <Link to={`/creators/${user.id}`}>Нийтийн профайл харах</Link></small></summary>
       <form className="form" onSubmit={save}>
+        {!('bio' in profile) && <p className="note">Танилцуулга, хөтөлбөр, GitHub талбарыг хадгалахын тулд админ Supabase дээр <code>supabase/migration_v2.sql</code>-г ажиллуулна уу.</p>}
         <label>Нэр *<input value={f.display_name} onChange={e => setF({ ...f, display_name: e.target.value })} /></label>
         <label>Хөтөлбөр / курс<input value={f.major} placeholder="МСМ, 3-р курс" onChange={e => setF({ ...f, major: e.target.value })} /></label>
         <label>Товч танилцуулга<textarea rows="3" value={f.bio} onChange={e => setF({ ...f, bio: e.target.value })} /></label>
@@ -352,7 +354,7 @@ function ProfileEditor() {
 // ISM Creators — оюутан ба бүтээлийг холбох
 const Avatar = ({ p, big }) => p?.avatar_url ? <img className={'avatar' + (big ? ' big' : '')} src={p.avatar_url} alt={p.display_name} /> : <span className={'avatar' + (big ? ' big' : '')}>{(p?.display_name || '?')[0].toUpperCase()}</span>
 function Creators() {
-  const s = useQuery(() => supabase.from('profiles').select('id, display_name, avatar_url, bio, major, exhibits(id, status, technology_stack)').order('display_name'))
+  const s = useQuery(() => supabase.from('profiles').select('*, exhibits(id, status, technology_stack)').order('display_name'))
   const [q, setQ] = useState('')
   const list = (s.data || []).map(p => ({ ...p, works: (p.exhibits || []).filter(x => x.status === 'published') })).filter(p => p.works.length > 0 || p.bio)
     .filter(p => !q.trim() || [p.display_name, p.major, p.bio, ...p.works.flatMap(w => w.technology_stack || [])].join(' ').toLowerCase().includes(q.trim().toLowerCase()))
@@ -370,7 +372,7 @@ function Creators() {
 }
 function CreatorDetail() {
   const { id } = useParams()
-  const p = useQuery(() => supabase.from('profiles').select('id, display_name, avatar_url, bio, major, github_url, created_at').eq('id', id).maybeSingle(), [id])
+  const p = useQuery(() => supabase.from('profiles').select('*').eq('id', id).maybeSingle(), [id])
   const w = useQuery(() => supabase.from('exhibits').select('*, exhibition_categories(name)').eq('creator_id', id).eq('status', 'published').order('year_created', { ascending: false }), [id])
   if (p.done && !p.data && !p.error) return <p className="empty">Бүтээгч олдсонгүй. <Link to="/creators">Жагсаалт руу буцах</Link></p>
   if (!p.data) return <Loading s={p} />
