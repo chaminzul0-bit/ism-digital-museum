@@ -107,17 +107,16 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Зөвшөөрөлгүй хүсэлт" });
   }
 
-  if (
-    !process.env.SUPABASE_URL ||
-    !process.env.SUPABASE_SERVICE_ROLE_KEY
-  ) {
+  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  if (!SUPABASE_URL || !SERVICE_KEY) {
     return res.status(500).json({
       error: "Supabase серверийн тохиргоо дутуу байна",
     });
   }
 
   // service role key зөвхөн серверт (Vercel env) — frontend-д хэзээ ч орохгүй
-  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const results = [];
 
   for (const source of SOURCES) {
