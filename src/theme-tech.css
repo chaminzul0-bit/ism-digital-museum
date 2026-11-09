@@ -109,3 +109,19 @@ select option{background:#070c18}
 @keyframes nexusPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
 @media(prefers-reduced-motion:reduce){.brand:before,.hero h1:after{animation:none}}
 .teacher-card img{aspect-ratio:1/1!important;object-position:50% 18%}
+
+/* v5: carousel layout fix — зураг дээр, тайлбар доор; хажуугийн картууд зөвхөн зураг */
+.carousel{min-height:500px;align-items:center;margin:1.5rem 0 1rem;overflow:hidden;padding:1rem 0}
+.slide{display:flex;flex-direction:column;height:auto!important;width:min(340px,64vw);background:#0b1324!important;opacity:calc(1 - abs(var(--d))*.35);filter:brightness(calc(1 - abs(var(--d))*.25))}
+.slide.cur{width:min(420px,84vw)!important;opacity:1;filter:none;box-shadow:0 0 0 1px rgba(34,211,238,.35),0 24px 60px rgba(0,0,0,.6),0 0 40px rgba(34,211,238,.15)}
+.slide:after{display:none}
+.slide>img,.slide>.ph{position:static!important;inset:auto;width:100%;height:auto!important;aspect-ratio:4/3;object-fit:cover;flex:none}
+.slide .expand{top:.75rem;left:auto;right:.75rem;transform:none;background:rgba(5,10,20,.8)!important;backdrop-filter:blur(6px);font-size:.85rem}
+.slide .cap{position:static!important;padding:1rem 1.1rem 1.1rem;background:linear-gradient(180deg,#0d1730,#0a1222)!important;border-top:1px solid rgba(34,211,238,.25);backdrop-filter:none}
+.cap h2{font-size:1.15rem!important;line-height:1.3}
+.cap time{font-family:var(--mono);color:#22d3ee;font-size:.9rem}
+.cap blockquote{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:.92rem;line-height:1.5}
+.cap small{font-family:var(--mono);font-size:.78rem;display:block;line-height:1.6}
+.artist{width:min(520px,100%)!important;margin:0 auto 2.5rem!important}
+.artist .on{color:#f472b6!important}
+@media (max-width:640px){.carousel{min-height:460px}.slide{width:62vw}.slide.cur{width:86vw!important}}
