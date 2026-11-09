@@ -108,3 +108,4 @@ select option{background:#070c18}
 @keyframes nexusBlink{50%{opacity:0}}
 @keyframes nexusPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
 @media(prefers-reduced-motion:reduce){.brand:before,.hero h1:after{animation:none}}
+.teacher-card img{aspect-ratio:1/1!important;object-position:50% 18%}
