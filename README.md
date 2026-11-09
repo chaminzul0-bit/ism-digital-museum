@@ -52,3 +52,30 @@ update public.profiles set role = 'admin' where id = 'USER_UUID_HERE';
 - Environment Variables-д `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` нэмнэ.
 - Deploy хийсний дараа Supabase Authentication → URL Configuration дээр Site URL болон Redirect URL-д Vercel domain-оо тохируулна.
 - `.env`-г GitHub-д хэзээ ч commit хийхгүй. Frontend-д зөвхөн publishable/anon key ашиглана; `service_role`/secret key-г хэзээ ч оруулахгүй.
+
+## v2 шинэчлэл
+- **ISM Creators** (`/creators`, `/creators/:id`): оюутны профайл (нэр, хөтөлбөр, танилцуулга, зураг, GitHub) болон бүтээлүүдийг холбоно; профайлаа «Миний бүтээл» хуудаснаас засна.
+- **Тэнхимийн түүх** (`/history`): түүхэн үйл явдлыг арван жилийн үе шатаар харуулна.
+- Үзмэрийг бүтээгчийн нэрээр хайх, технологиор (chip) шүүх, үр дүнгийн тоо, «Шүүлтүүр цэвэрлэх».
+- Админ самбар: **Үзмэр хянах** (бүх үзмэр, ноорог/нийтлэгдсэн) ба **UFE импорт** (`import_items` хянах).
+- **Technology Evolution** (Time Machine хуудсанд): хамгийн их ашигласан технологи (bar chart) ба он × технологийн heatmap.
+- `api/import-ufe.js` ESM болгож засав; `vercel.json` нь `/api/*`-г SPA rewrite-аас чөлөөлнө.
+
+### Өгөгдлийн сан шинэчлэх
+Schema-г өмнө нь ажиллуулсан бол Supabase SQL Editor дээр `supabase/migration_v2.sql`-г ажиллуулна (profiles-ийн шинэ баганууд, `import_items` + RLS). Demo өгөгдөл: `supabase/seed_demo.sql`.
+
+### ERD
+```mermaid
+erDiagram
+  profiles ||--o{ exhibits : "creator_id"
+  exhibition_categories ||--o{ exhibits : "category_id"
+  events ||--o{ event_photos : "event_id"
+  profiles { uuid id PK text display_name text bio text major text role }
+  exhibits { uuid id PK text title uuid category_id FK uuid creator_id FK int year_created text status }
+  exhibition_categories { uuid id PK text name }
+  teachers { uuid id PK text name text position text courses }
+  events { uuid id PK text title date event_date }
+  event_photos { uuid id PK uuid event_id FK text image_url }
+  history_entries { uuid id PK int year text title }
+  import_items { uuid id PK text title text source_url text status }
+```
