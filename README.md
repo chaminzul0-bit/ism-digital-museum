@@ -1,4 +1,4 @@
-# ISM Digital Museum
+# ISM.NEXUS — Мэдээллийн системийн дижитал музей
 
 ISM тэнхимийн түүх, багш, арга хэмжээ, оюутны бүтээлийг хадгалж, танилцуулах интерактив музей. Internet Programming · Гэрийн даалгавар №1.
 
@@ -79,3 +79,9 @@ erDiagram
   history_entries { uuid id PK int year text title }
   import_items { uuid id PK text title text source_url text status }
 ```
+
+## v3: ISM.NEXUS rebrand + ufe.edu.mn өгөгдөл
+- **Нэр:** ISM.NEXUS — тэнхимийн уриа «Технологийн дэвшлээр хөгжлийг хурдасгана».
+- **Дизайн:** `src/theme-tech.css` — tech/cyber загвар (Space Grotesk + JetBrains Mono, неон cyan/violet, grid дэвсгэр, terminal hero). `styles.css`-ийн дараа ачаалагдаж хувьсагчдыг дарж бичнэ.
+- **Бодит өгөгдөл:** `src/ufeData.js` — ufe.edu.mn-ийн «СЭЗИС-ийн хамт олон → МСМ тэнхим» (10 багш: нэр, зэрэг, албан тушаал; эрхэм зорилго, алсын хараа, хөтөлбөр, судалгааны чиглэл) болон «Түүхэн замнал»-аас (2026-11-09). Багшийн зураг, имэйл зэрэг хувийн мэдээлэл оруулаагүй.
+- Supabase-д багш / түүх бүртгэгдээгүй үед сайт ufe.edu.mn-ийн мэдээллийг харуулна. Өгөгдлийн санд оруулахдаа SQL Editor дээр `supabase/seed_ufe.sql`-г ажиллуулна (дахин ажиллуулахад давхардахгүй).
