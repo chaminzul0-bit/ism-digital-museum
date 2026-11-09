@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, usePa
 import { supabase, configured, uploadImage } from './supabase'
 import { useAuth } from './auth'
 import Crud from './Crud'
+import { DEPT, UFE_TEACHERS, UFE_HISTORY } from './ufeData'
 import ImportManager from './ImportManager'
 
 const fmt = d => new Date(d).toLocaleDateString('mn-MN', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -20,7 +21,7 @@ function Layout({ children }) {
   return (
     <div className="room">
       <header className="top">
-        <Link to="/" className="brand">ISM <span>Digital Museum</span></Link>
+        <Link to="/" className="brand" aria-label="ISM.NEXUS нүүр">ISM<span>.NEXUS</span></Link>
         <nav>
           <NavLink to="/exhibits">Үзмэр</NavLink><NavLink to="/creators">ISM Creators</NavLink><NavLink to="/history">Түүх</NavLink><NavLink to="/timeline">Time Machine</NavLink>
           <NavLink to="/teachers">Багш нар</NavLink><NavLink to="/events">Арга хэмжээ</NavLink>
@@ -31,7 +32,7 @@ function Layout({ children }) {
         </nav>
       </header>
       <main className={home ? 'stage' : 'page'}>{!configured && <p className="note">Supabase холбогдоогүй байна. <code>.env</code> файлд VITE_SUPABASE_URL болон VITE_SUPABASE_ANON_KEY-г тохируулна уу.</p>}{children}</main>
-      <footer className="foot">Мэдээллийн Системийн Менежментийн Тэнхим · Internet Programming</footer>
+      <footer className="foot">Мэдээллийн системийн менежментийн тэнхим · СЭЗИС · {DEPT.motto}</footer>
     </div>
   )
 }
@@ -52,17 +53,12 @@ function Home() {
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
   }, [list.length])
   if (!s.data) return <Loading s={s} />
-  if (list.length === 0) return <div className="glass empty-stage"><h1>ISM Digital Museum</h1><p>Үзмэр хараахан нэмэгдээгүй байна. Нэвтэрч өөрийн бүтээлийг нэмээрэй.</p><Link className="btn" to="/login">Нэвтрэх</Link></div>
+  if (list.length === 0) return <><Hero /><DeptIntro compact /></>
   const cur = list[i]
   const toggleFav = () => { const n = fav.includes(cur.id) ? fav.filter(x => x !== cur.id) : [...fav, cur.id]; setFav(n); try { localStorage.setItem('fav', JSON.stringify(n)) } catch {} }
   return (
     <>
-      <section className="hero">
-        <span className="eyebrow">Information Systems Management · Digital Archive</span>
-        <h1>Мэдлэг, бүтээл, түүхийг нэг дороос.</h1>
-        <p>ISM тэнхимийн оюутнуудын бүтээл, багш нар, арга хэмжээ болон түүхэн дурсамжийг интерактив дижитал музейгээр нээн үзээрэй.</p>
-        <div className="row"><Link className="btn" to="/exhibits">Үзэсгэлэн үзэх</Link><Link className="btn ghost" to="/timeline">Time Machine рүү</Link></div>
-      </section>
+      <Hero />
       <div className="carousel" aria-roledescription="carousel">
         {list.map((e, idx) => {
           const d = idx - i
@@ -94,6 +90,30 @@ function Home() {
         <button onClick={() => go(1)} disabled={i === list.length - 1} aria-label="Дараах"><Ico d={I.next} /></button>
       </div>
     </>
+  )
+}
+
+const Hero = () => (
+  <section className="hero">
+    <span className="eyebrow">ism.nexus --boot · Information Systems Management</span>
+    <h1>{DEPT.motto.replace(/\.$/, '')}</h1>
+    <p>ISM.NEXUS — СЭЗИС-ийн Мэдээллийн системийн менежментийн тэнхимийн түүх, багш нар, арга хэмжээ, оюутны бүтээлийг нэг сүлжээнд холбосон интерактив дижитал музей.</p>
+    <div className="row"><Link className="btn" to="/exhibits">Үзэсгэлэн үзэх</Link><Link className="btn ghost" to="/timeline">Time Machine рүү</Link><Link className="btn ghost" to="/teachers">Багш нар</Link></div>
+  </section>
+)
+// Тэнхимийн танилцуулга — ufe.edu.mn-ээс
+function DeptIntro({ compact }) {
+  return (
+    <section>
+      {!compact && <p className="motto">“{DEPT.motto}”</p>}
+      <div className="dept-grid">
+        <div className="panel"><h3>Эрхэм зорилго</h3><p>{DEPT.mission}</p></div>
+        <div className="panel"><h3>Алсын хараа</h3><p>{DEPT.vision}</p></div>
+        <div className="panel"><h3>Хөтөлбөрүүд</h3><ul>{DEPT.programs.map(p => <li key={p}>{p}</li>)}</ul></div>
+        {!compact && <div className="panel"><h3>Судалгааны чиглэл</h3><ul>{DEPT.research.map(p => <li key={p}>{p}</li>)}</ul></div>}
+      </div>
+      <p className="src">src: <a href={DEPT.source} target="_blank" rel="noreferrer">ufe.edu.mn</a> · {DEPT.location}</p>
+    </section>
   )
 }
 
@@ -159,13 +179,21 @@ function ExhibitDetail() {
   )
 }
 
+const initials = n => (n || '?').split(/[\s.]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
 function Teachers() {
   const s = useQuery(() => supabase.from('teachers').select('*').order('name'))
-  return (<><h1>Тэнхимийн багш нар</h1><Loading s={s} />
-    {s.data?.length === 0 && <p className="empty">Багшийн мэдээлэл хараахан нэмэгдээгүй байна.</p>}
-    <div className="grid">{s.data?.map(t => (
-      <div className="card static" key={t.id}><Img src={t.photo_url} alt={t.name} />
-        <div><small>{t.position}</small><h3>{t.name}</h3><p><b>Хичээл:</b> {t.courses}</p><p>{t.bio}</p></div></div>))}</div></>)
+  const fromDb = s.data?.length > 0
+  const list = fromDb ? s.data : UFE_TEACHERS.map((t, i) => ({ id: 'ufe' + i, name: t.full, position: t.position, bio: t.degree }))
+  return (<><h1>Тэнхимийн багш нар</h1>
+    <p className="prose">{DEPT.name}-ийн багш нар. {!fromDb && s.done && <span className="src">// Supabase-д багш бүртгэгдээгүй тул ufe.edu.mn-ийн мэдээллийг харуулж байна (supabase/seed_ufe.sql-ээр оруулна).</span>}</p>
+    {s.error && <Loading s={s} />}
+    {!s.done && <p className="empty">Ачаалж байна…</p>}
+    {s.done && <div className="grid">{list.map(t => (
+      <div className="card static teacher-card" key={t.id}>{t.photo_url ? <Img src={t.photo_url} alt={t.name} /> : <div className="initials" aria-hidden>{initials(t.name)}</div>}
+        <div><small>{t.position}</small><h3>{t.name}</h3>
+          {t.courses && <p><b>Хичээл:</b> {t.courses}</p>}
+          {t.bio && <p>{t.bio}</p>}</div></div>))}</div>}
+    <p className="src">src: <a href={DEPT.source} target="_blank" rel="noreferrer">ufe.edu.mn · СЭЗИС-ийн хамт олон</a></p></>)
 }
 
 function Events() {
@@ -392,16 +420,19 @@ function CreatorDetail() {
 // Тэнхимийн түүх — хөгжлийн үе шатууд (history_entries-ээс арван жилээр бүлэглэнэ)
 function History() {
   const s = useQuery(() => supabase.from('history_entries').select('*').order('year'))
+  const rows = s.data && s.data.length >= 5 ? s.data : s.done ? UFE_HISTORY.map((h, i) => ({ ...h, id: 'ufe' + i })) : []
   const groups = useMemo(() => {
     const g = {}
-    ;(s.data || []).forEach(h => { const k = Math.floor(h.year / 10) * 10; (g[k] ||= []).push(h) })
+    ;rows.forEach(h => { const k = Math.floor(h.year / 10) * 10; (g[k] ||= []).push(h) })
     return Object.entries(g)
-  }, [s.data])
+  }, [rows.length, s.data])
   return (<>
     <h1>Тэнхимийн түүх</h1>
+    <DeptIntro />
     <p className="prose">Мэдээллийн Системийн Менежментийн тэнхимийн үүсэл, онцлох үйл явдал, хөгжлийн үе шатууд. Бүх үйл явдлыг арга хэмжээ, бүтээлтэй хамт <Link to="/timeline">ISM Time Machine</Link>-ээс үзнэ үү.</p>
     <Loading s={s} />
-    {s.data?.length === 0 && <p className="empty">Түүхэн мэдээлэл хараахан нэмэгдээгүй байна.</p>}
+    <h2>Хөгжлийн үе шатууд</h2>
+    {s.data && s.data.length < 5 && <p className="src">// ufe.edu.mn-ийн «Түүхэн замнал»-аас (supabase/seed_ufe.sql-ээр өгөгдлийн санд оруулна)</p>}
     {groups.map(([dec, items], n) => (
       <section key={dec} className="era">
         <p className="era-no">Үе шат {String(n + 1).padStart(2, '0')}</p><h2>{dec}-аад он</h2>
