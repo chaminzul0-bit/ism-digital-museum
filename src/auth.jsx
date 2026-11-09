@@ -11,9 +11,7 @@ export function AuthProvider({ children }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null))
     return () => sub.subscription.unsubscribe()
   }, [])
-  useEffect(() => {
-    if (!user) return setProfile(null)
-    supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => setProfile(data))
-  }, [user])
-  return <Ctx.Provider value={{ user, profile, ready, isAdmin: profile?.role === 'admin' }}>{children}</Ctx.Provider>
+  const loadProfile = () => user && supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => setProfile(data))
+  useEffect(() => { if (!user) setProfile(null); else loadProfile() }, [user?.id])
+  return <Ctx.Provider value={{ user, profile, ready, isAdmin: profile?.role === 'admin', refreshProfile: loadProfile }}>{children}</Ctx.Provider>
 }

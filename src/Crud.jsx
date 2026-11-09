@@ -47,7 +47,7 @@ export default function Crud({ table, fields, owner = false, select = '*', order
       if (v === '') v = null
       payload[f.key] = v
     })
-    if (owner) payload.creator_id = user.id
+    if (owner || (table === 'exhibits' && !form.id)) payload.creator_id = user.id
     setBusy(true)
     const { error } = form.id
       ? await supabase.from(table).update(payload).eq('id', form.id)
@@ -96,7 +96,7 @@ export default function Crud({ table, fields, owner = false, select = '*', order
       <ul className="list">
         {rows.map(r => (
           <li key={r.id}>
-            <span>{title(r)}{r.status === 'draft' && <em className="tag"> ноорог</em>}</span>
+            <span>{title(r)}{r.status === 'draft' && <em className="tag"> ноорог</em>}{r.status === 'published' && table === 'exhibits' && !owner && <em className="tag"> нийтлэгдсэн</em>}</span>
             <span className="row">
               <button className="btn ghost sm" onClick={() => { setForm({ ...r }); setMsg('') }}>Засах</button>
               <button className="btn danger sm" onClick={() => remove(r)}>Устгах</button>

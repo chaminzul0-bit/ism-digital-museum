@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { supabase, configured } from './supabase'
+import { supabase, configured, uploadImage } from './supabase'
 import { useAuth } from './auth'
 import Crud from './Crud'
+import ImportManager from './ImportManager'
 
 const fmt = d => new Date(d).toLocaleDateString('mn-MN', { year: 'numeric', month: 'long', day: 'numeric' })
 function useQuery(fn, deps = []) {
@@ -21,7 +22,7 @@ function Layout({ children }) {
       <header className="top">
         <Link to="/" className="brand">ISM <span>Digital Museum</span></Link>
         <nav>
-          <NavLink to="/exhibits">Үзмэр</NavLink><NavLink to="/timeline">Time Machine</NavLink>
+          <NavLink to="/exhibits">Үзмэр</NavLink><NavLink to="/creators">ISM Creators</NavLink><NavLink to="/history">Түүх</NavLink><NavLink to="/timeline">Time Machine</NavLink>
           <NavLink to="/teachers">Багш нар</NavLink><NavLink to="/events">Арга хэмжээ</NavLink>
           {user && <NavLink to="/my">Миний бүтээл</NavLink>}
           {isAdmin && <NavLink to="/admin">Админ</NavLink>}
@@ -111,23 +112,27 @@ const EventCard = ({ e }) => (
 )
 
 function Exhibits() {
-  const s = useQuery(() => supabase.from('exhibits').select('*, exhibition_categories(name)').eq('status', 'published').order('year_created', { ascending: false }))
+  const s = useQuery(() => supabase.from('exhibits').select('*, exhibition_categories(name), profiles(display_name)').eq('status', 'published').order('year_created', { ascending: false }))
   const cats = useQuery(() => supabase.from('exhibition_categories').select('*').order('name'))
-  const [q, setQ] = useState(''), [cat, setCat] = useState(''), [year, setYear] = useState('')
+  const [q, setQ] = useState(''), [cat, setCat] = useState(''), [year, setYear] = useState(''), [tech, setTech] = useState('')
+  const techs = useMemo(() => [...new Set((s.data || []).flatMap(e => e.technology_stack || []))].sort(), [s.data])
   const years = useMemo(() => [...new Set((s.data || []).map(e => e.year_created).filter(Boolean))].sort((a, b) => b - a), [s.data])
   const list = (s.data || []).filter(e => {
     const t = q.trim().toLowerCase()
-    const hit = !t || [e.title, e.description, ...(e.technology_stack || [])].join(' ').toLowerCase().includes(t)
-    return hit && (!cat || e.category_id === cat) && (!year || String(e.year_created) === year)
+    const hit = !t || [e.title, e.description, e.profiles?.display_name, ...(e.technology_stack || [])].join(' ').toLowerCase().includes(t)
+    return hit && (!cat || e.category_id === cat) && (!year || String(e.year_created) === year) && (!tech || (e.technology_stack || []).includes(tech))
   })
   return (
     <>
       <h1>Дижитал үзэсгэлэн</h1>
       <div className="filters">
-        <input type="search" placeholder="Нэр, тайлбар эсвэл технологиор хайх" value={q} onChange={e => setQ(e.target.value)} aria-label="Хайлт" />
+        <input type="search" placeholder="Нэр, бүтээгч, тайлбар эсвэл технологиор хайх" value={q} onChange={e => setQ(e.target.value)} aria-label="Хайлт" />
         <select value={cat} onChange={e => setCat(e.target.value)} aria-label="Ангилал"><option value="">Бүх ангилал</option>{cats.data?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Он"><option value="">Бүх он</option>{years.map(y => <option key={y}>{y}</option>)}</select>
       </div>
+      {techs.length > 0 && <div className="row" aria-label="Технологиор шүүх">{techs.map(t => <button key={t} className={'chip ' + (tech === t ? 'on' : '')} aria-pressed={tech === t} onClick={() => setTech(tech === t ? '' : t)}>{t}</button>)}</div>}
+      {(q || cat || year || tech) && <button className="btn ghost sm" onClick={() => { setQ(''); setCat(''); setYear(''); setTech('') }}>Шүүлтүүр цэвэрлэх</button>}
+      {s.data && <p className="meta">{list.length} үзмэр олдлоо</p>}
       <Loading s={s} />
       {s.data && list.length === 0 && <p className="empty">“{q || 'сонгосон шүүлтүүр'}”-д тохирох үзмэр олдсонгүй. Хайлтаа өөрчилж эсвэл шүүлтүүрийг цэвэрлээд үзнэ үү.</p>}
       <div className="grid">{list.map(e => <ExhibitCard key={e.id} e={e} />)}</div>
@@ -145,7 +150,7 @@ function ExhibitDetail() {
     <article className="detail">
       <Link to="/exhibits">← Бүх үзмэр</Link>
       <h1>{e.title}</h1>
-      <p className="meta">{e.exhibition_categories?.name} · {e.year_created} · Бүтээгч: {e.profiles?.display_name}</p>
+      <p className="meta">{e.exhibition_categories?.name} · {e.year_created} · Бүтээгч: <Link to={`/creators/${e.creator_id}`}>{e.profiles?.display_name}</Link></p>
       <Img src={e.image_url} alt={e.title} />
       <p className="prose">{e.description}</p>
       <div className="row">{(e.technology_stack || []).map(t => <span className="tag" key={t}>{t}</span>)}</div>
@@ -215,6 +220,7 @@ function Timeline() {
         <label>{start} оноос хойш<input type="range" min={min} max={max} value={start} onChange={ev => setFrom(+ev.target.value)} disabled={min === max} /></label>
         <div className="row">{Object.keys(label).map(k => <button key={k} className={'chip ' + (kinds[k] ? 'on' : '')} aria-pressed={kinds[k]} onClick={() => setKinds(s => ({ ...s, [k]: !s[k] }))}>{label[k]}</button>)}</div>
       </div>
+      <TechEvolution exhibits={x.data.filter(i => i.year_created >= start)} />
       {shown.length === 0 && <p className="empty">Энэ хугацаанд тохирох үйл явдал олдсонгүй. Гулсуурыг зүүн тийш татаж үзнэ үү.</p>}
       <ol className="tl">
         {shown.map(i => (
@@ -228,6 +234,30 @@ function Timeline() {
       </ol>
     </>
   )
+}
+
+// Нэмэлт бүтээлч шийдэл: Technology Evolution — он бүрийн бүтээлд ашигласан технологийн өөрчлөлт
+function TechEvolution({ exhibits }) {
+  const [open, setOpen] = useState(true)
+  const data = useMemo(() => {
+    const total = {}, byYear = {}
+    exhibits.forEach(e => (e.technology_stack || []).forEach(t => { total[t] = (total[t] || 0) + 1; ((byYear[e.year_created] ||= {})[t] = (byYear[e.year_created][t] || 0) + 1) }))
+    const top = Object.entries(total).sort((a, b) => b[1] - a[1]).slice(0, 8)
+    const years = Object.keys(byYear).sort()
+    return { top, years, byYear, max: top[0]?.[1] || 1 }
+  }, [exhibits])
+  if (data.top.length === 0) return null
+  return (
+    <section className="panel tech">
+      <button className="chip on" onClick={() => setOpen(!open)} aria-expanded={open}>Technology Evolution {open ? '−' : '+'}</button>
+      {open && <div className="tech-grid">
+        <div><h3>Хамгийн их ашигласан</h3>
+          {data.top.map(([t, n]) => <div className="bar" key={t}><span>{t}</span><i style={{ width: (n / data.max * 100) + '%' }} /><b>{n}</b></div>)}</div>
+        <div><h3>Он бүрээр</h3>
+          <table className="heat"><thead><tr><th></th>{data.years.map(y => <th key={y}>{y}</th>)}</tr></thead>
+            <tbody>{data.top.map(([t]) => <tr key={t}><th>{t}</th>{data.years.map(y => { const n = data.byYear[y][t] || 0; return <td key={y} style={{ '--a': n / data.max }} title={`${y}: ${t} — ${n} бүтээл`}>{n || ''}</td> })}</tr>)}</tbody></table></div>
+      </div>}
+    </section>)
 }
 
 function Login() {
@@ -277,9 +307,109 @@ const exhibitFields = [
   { key: 'github_url', label: 'GitHub холбоос', type: 'url' },
   { key: 'status', label: 'Төлөв', options: [{ value: 'published', label: 'Нийтлэх' }, { value: 'draft', label: 'Ноорог' }] },
 ]
-const MyWorks = () => <Guard><h1>Миний бүтээл</h1><p className="prose">Зөвхөн өөрийн бүтээлийг нэмэх, засах, устгах боломжтой (RLS-ээр хамгаалагдсан).</p><Crud table="exhibits" fields={exhibitFields} owner /></Guard>
+const MyWorks = () => <Guard><h1>Миний бүтээл</h1><ProfileEditor /><h2>Бүтээлүүд</h2><p className="prose">Зөвхөн өөрийн бүтээлийг нэмэх, засах, устгах боломжтой (RLS-ээр хамгаалагдсан).</p><Crud table="exhibits" fields={exhibitFields} owner /></Guard>
+
+// ISM Creators: оюутан өөрийн танилцуулгыг засна (profiles — RLS: зөвхөн өөрийн мөр)
+function ProfileEditor() {
+  const { user, profile, refreshProfile } = useAuth()
+  const [f, setF] = useState(null)
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { if (profile) setF({ display_name: profile.display_name || '', major: profile.major || '', bio: profile.bio || '', github_url: profile.github_url || '', avatar_url: profile.avatar_url || '' }) }, [profile])
+  if (!f) return null
+  async function onFile(file) {
+    if (!file) return
+    setBusy(true); setMsg('')
+    try { setF(v => ({ ...v, avatar_url: '' })); const url = await uploadImage(file, user.id); setF(v => ({ ...v, avatar_url: url })) } catch (e) { setMsg('Зураг оруулахад алдаа: ' + e.message) }
+    setBusy(false)
+  }
+  async function save(e) {
+    e.preventDefault(); setMsg('')
+    if (!f.display_name.trim()) return setMsg('Нэрээ оруулна уу.')
+    if (f.github_url && !/^https?:\/\//.test(f.github_url)) return setMsg('GitHub холбоос http(s):// -ээр эхэлнэ.')
+    setBusy(true)
+    const payload = Object.fromEntries(Object.entries(f).map(([k, v]) => [k, v.trim() || null]))
+    const { error } = await supabase.from('profiles').update(payload).eq('id', user.id)
+    setBusy(false)
+    if (error) return setMsg('Хадгалж чадсангүй: ' + error.message)
+    setMsg('Профайл хадгалагдлаа.'); refreshProfile()
+  }
+  return (
+    <details className="panel" open={!profile.bio}>
+      <summary><b>Миний Creator профайл</b> <small>— ISM Creators хуудсанд харагдана · <Link to={`/creators/${user.id}`}>Нийтийн профайл харах</Link></small></summary>
+      <form className="form" onSubmit={save}>
+        <label>Нэр *<input value={f.display_name} onChange={e => setF({ ...f, display_name: e.target.value })} /></label>
+        <label>Хөтөлбөр / курс<input value={f.major} placeholder="МСМ, 3-р курс" onChange={e => setF({ ...f, major: e.target.value })} /></label>
+        <label>Товч танилцуулга<textarea rows="3" value={f.bio} onChange={e => setF({ ...f, bio: e.target.value })} /></label>
+        <label>GitHub<input type="url" value={f.github_url} placeholder="https://github.com/..." onChange={e => setF({ ...f, github_url: e.target.value })} /></label>
+        <label>Профайл зураг<input type="file" accept="image/*" onChange={e => onFile(e.target.files[0])} />{f.avatar_url && <img className="thumb" src={f.avatar_url} alt="Профайл зураг" />}</label>
+        {msg && <p className="note" role="status">{msg}</p>}
+        <div className="row"><button className="btn" disabled={busy}>{busy ? 'Хадгалж байна…' : 'Профайл хадгалах'}</button></div>
+      </form>
+    </details>)
+}
+
+// ISM Creators — оюутан ба бүтээлийг холбох
+const Avatar = ({ p, big }) => p?.avatar_url ? <img className={'avatar' + (big ? ' big' : '')} src={p.avatar_url} alt={p.display_name} /> : <span className={'avatar' + (big ? ' big' : '')}>{(p?.display_name || '?')[0].toUpperCase()}</span>
+function Creators() {
+  const s = useQuery(() => supabase.from('profiles').select('id, display_name, avatar_url, bio, major, exhibits(id, status, technology_stack)').order('display_name'))
+  const [q, setQ] = useState('')
+  const list = (s.data || []).map(p => ({ ...p, works: (p.exhibits || []).filter(x => x.status === 'published') })).filter(p => p.works.length > 0 || p.bio)
+    .filter(p => !q.trim() || [p.display_name, p.major, p.bio, ...p.works.flatMap(w => w.technology_stack || [])].join(' ').toLowerCase().includes(q.trim().toLowerCase()))
+  return (<>
+    <h1>ISM Creators</h1>
+    <p className="prose">Тэнхимийн оюутнууд болон тэдний бүтээлүүд. Бүтээгч дээр дарж бүх бүтээлийг нь үзнэ үү.</p>
+    <div className="filters one"><input type="search" placeholder="Нэр, хөтөлбөр эсвэл технологиор хайх" value={q} onChange={e => setQ(e.target.value)} aria-label="Бүтээгч хайх" /></div>
+    <Loading s={s} />
+    {s.data && list.length === 0 && <p className="empty">{q ? `“${q}”-д тохирох бүтээгч олдсонгүй.` : 'Бүтээгч хараахан алга. Бүртгүүлээд эхний бүтээлээ нэмээрэй.'}</p>}
+    <div className="grid">{list.map(p => (
+      <Link to={`/creators/${p.id}`} className="card creator" key={p.id}>
+        <div><Avatar p={p} /><h3>{p.display_name}</h3><small>{p.major || 'ISM Creator'} · {p.works.length} бүтээл</small>{p.bio && <p>{p.bio}</p>}</div>
+      </Link>))}</div>
+  </>)
+}
+function CreatorDetail() {
+  const { id } = useParams()
+  const p = useQuery(() => supabase.from('profiles').select('id, display_name, avatar_url, bio, major, github_url, created_at').eq('id', id).maybeSingle(), [id])
+  const w = useQuery(() => supabase.from('exhibits').select('*, exhibition_categories(name)').eq('creator_id', id).eq('status', 'published').order('year_created', { ascending: false }), [id])
+  if (p.done && !p.data && !p.error) return <p className="empty">Бүтээгч олдсонгүй. <Link to="/creators">Жагсаалт руу буцах</Link></p>
+  if (!p.data) return <Loading s={p} />
+  const techs = [...new Set((w.data || []).flatMap(e => e.technology_stack || []))]
+  return (<article className="detail">
+    <Link to="/creators">← Бүх бүтээгч</Link>
+    <div className="creator-head"><Avatar p={p.data} big /><div><h1>{p.data.display_name}</h1><p className="meta">{p.data.major || 'ISM Creator'} · {w.data?.length ?? 0} бүтээл</p></div></div>
+    {p.data.bio && <p className="prose">{p.data.bio}</p>}
+    <div className="row">{techs.map(t => <span className="tag" key={t}>{t}</span>)}</div>
+    {p.data.github_url && <a className="btn ghost" href={p.data.github_url} target="_blank" rel="noreferrer">GitHub</a>}
+    <h2>Бүтээлүүд</h2><Loading s={w} />
+    {w.data?.length === 0 && <p className="empty">Нийтлэгдсэн бүтээл алга.</p>}
+    <div className="grid">{w.data?.map(e => <ExhibitCard key={e.id} e={e} />)}</div>
+  </article>)
+}
+
+// Тэнхимийн түүх — хөгжлийн үе шатууд (history_entries-ээс арван жилээр бүлэглэнэ)
+function History() {
+  const s = useQuery(() => supabase.from('history_entries').select('*').order('year'))
+  const groups = useMemo(() => {
+    const g = {}
+    ;(s.data || []).forEach(h => { const k = Math.floor(h.year / 10) * 10; (g[k] ||= []).push(h) })
+    return Object.entries(g)
+  }, [s.data])
+  return (<>
+    <h1>Тэнхимийн түүх</h1>
+    <p className="prose">Мэдээллийн Системийн Менежментийн тэнхимийн үүсэл, онцлох үйл явдал, хөгжлийн үе шатууд. Бүх үйл явдлыг арга хэмжээ, бүтээлтэй хамт <Link to="/timeline">ISM Time Machine</Link>-ээс үзнэ үү.</p>
+    <Loading s={s} />
+    {s.data?.length === 0 && <p className="empty">Түүхэн мэдээлэл хараахан нэмэгдээгүй байна.</p>}
+    {groups.map(([dec, items], n) => (
+      <section key={dec} className="era">
+        <p className="era-no">Үе шат {String(n + 1).padStart(2, '0')}</p><h2>{dec}-аад он</h2>
+        <ol className="tl">{items.map(h => <li key={h.id} className="k-history"><span className="yr">{h.year}</span><div className="tlc"><h3>{h.title}</h3><p>{h.description}</p></div></li>)}</ol>
+      </section>))}
+  </>)
+}
 
 const adminTabs = {
+  'Үзмэр хянах': ['exhibits', exhibitFields, 'created_at'],
   'Багш нар': ['teachers', [{ key: 'name', label: 'Нэр', required: true }, { key: 'position', label: 'Албан тушаал' }, { key: 'courses', label: 'Заадаг хичээл' }, { key: 'bio', label: 'Танилцуулга', type: 'textarea' }, { key: 'photo_url', label: 'Зураг', type: 'image' }], 'name'],
   'Арга хэмжээ': ['events', [{ key: 'title', label: 'Нэр', required: true }, { key: 'event_date', label: 'Огноо', type: 'date', required: true }, { key: 'description', label: 'Тайлбар', type: 'textarea' }, { key: 'cover_image_url', label: 'Нүүр зураг', type: 'image' }], 'event_date'],
   'Зурагт цомог': ['event_photos', [{ key: 'caption', label: 'Тайлбар' }, { key: 'event_id', label: 'Арга хэмжээ', ref: ['events', 'title'], required: true }, { key: 'image_url', label: 'Зураг', type: 'image', required: true }]],
@@ -287,18 +417,19 @@ const adminTabs = {
   'Ангилал': ['exhibition_categories', [{ key: 'name', label: 'Нэр', required: true }, { key: 'description', label: 'Тайлбар' }]],
 }
 function Admin() {
-  const [tab, setTab] = useState('Багш нар')
-  const [t, fields, order] = adminTabs[tab]
+  const [tab, setTab] = useState('Үзмэр хянах')
+  const [t, fields, order] = adminTabs[tab] || []
   return (<Guard admin><h1>Админ самбар</h1>
-    <div className="row">{Object.keys(adminTabs).map(k => <button key={k} className={'chip ' + (k === tab ? 'on' : '')} onClick={() => setTab(k)}>{k}</button>)}</div>
-    <Crud key={t} table={t} fields={fields} order={order} /></Guard>)
+    <div className="row">{[...Object.keys(adminTabs), 'UFE импорт'].map(k => <button key={k} className={'chip ' + (k === tab ? 'on' : '')} onClick={() => setTab(k)}>{k}</button>)}</div>
+    {tab === 'UFE импорт' ? <ImportManager /> : <Crud key={t} table={t} fields={fields} order={order} />}</Guard>)
 }
 
 export default function App() {
   return (
     <Layout><Routes>
       <Route path="/" element={<Home />} /><Route path="/exhibits" element={<Exhibits />} /><Route path="/exhibits/:id" element={<ExhibitDetail />} />
-      <Route path="/timeline" element={<Timeline />} /><Route path="/teachers" element={<Teachers />} />
+      <Route path="/timeline" element={<Timeline />} /><Route path="/history" element={<History />} />
+      <Route path="/creators" element={<Creators />} /><Route path="/creators/:id" element={<CreatorDetail />} /><Route path="/teachers" element={<Teachers />} />
       <Route path="/events" element={<Events />} /><Route path="/events/:id" element={<EventDetail />} />
       <Route path="/login" element={<Login />} /><Route path="/my" element={<MyWorks />} /><Route path="/admin" element={<Admin />} />
       <Route path="*" element={<p className="empty">Хуудас олдсонгүй. <Link to="/">Нүүр хуудас руу буцах</Link></p>} />
